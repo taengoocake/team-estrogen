@@ -1,0 +1,25 @@
+//RoomBase.c - designing a basic room
+
+#include<stdio.h>
+#include<stdlib.h>
+#include<GL/freeglut.h>
+#include<gl/GL.h>
+#include<gl/GLU.h>
+#include<math.h>
+
+GLfloat x_angle = 0;
+GLfloat y_angle = 0;
+GLfloat z_angle = 0;
+GLfloat pitch = 0;
+GLfloat x_translate = 0;
+GLfloat y_translate = 0;
+GLfloat z_translate = 0;
+GLfloat f_width = 0;
+GLfloat f_dist = 0;
+//x_translate: -2.861058, z_translate -2.451329, y_translate -1.000000, y_angle -58.400078
+GLuint texture;
+
+#define true 1
+#define false 0
+#define WIDTH 3.6
+#define DEPTH 2.9
