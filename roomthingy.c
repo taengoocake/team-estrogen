@@ -10,10 +10,11 @@ void display(void);
 void keyboard(unsigned char, int, int);
 void resize(int, int);
 void drawcube(int, int, int);
+void table(double topWid, double topThick, double legThick, double legLen);
+void tableLeg(double thick, double len);
 
 int is_depth; /* depth testing flag */
 
-GLuint texture[1];
 
 int main (int argc, char **argv)
 {
@@ -27,8 +28,6 @@ int main (int argc, char **argv)
 
 	glutDisplayFunc(display);
 	glutKeyboardFunc(keyboard);
-	//glutPassiveMotionFunc(look);
-	//glutMotionFunc(look);
 
 	/* constant aspect ratio */
 	glutReshapeFunc(resize);  
@@ -51,22 +50,78 @@ void display(void)
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	else
 		glClear(GL_COLOR_BUFFER_BIT);
-	
-	glEnable(GL_TEXTURE_2D);
 
 	/* draw the floor */
 	glBegin(GL_QUADS);
-		glColor3f(0.2f, 0.2f, 0.2f);
-		glVertex3f(-100.0, 0.0, -100.0);
-		glColor3f(0.4f, 0.4f, 0.4f);
-		glVertex3f(-100.0, 0.0, 100.0);
-		glColor3f(0.6f, 0.6f, 0.6f);
-		glVertex3f(100.0, 0.0, 100.0);
-		glColor3f(0.8f, 0.8f, 0.8f);
-		glVertex3f(100.0, 0.0, -100.0);		
+		glColor3f(0.36f, 0.25f, 0.20f);
+		glVertex3f(-200.0, 0.0, -200.0);
+		glColor3f(0.36f, 0.25f, 0.20f);
+		glVertex3f(-200.0, 0.0, 200.0);
+		glColor3f(0.36f, 0.25f, 0.20f);
+		glVertex3f(200.0, 0.0, 200.0);
+		glColor3f(0.36f, 0.25f, 0.20f);
+		glVertex3f(200.0, 0.0, -200.0);		
 	glEnd();
 
-	glDisable(GL_TEXTURE_2D);
+	/* draw the right side wall */
+	glBegin(GL_QUADS);
+		glColor3f(0.55f, 0.15f, 0.0f);
+		glVertex3f(200.0, 150.0, -200.0);
+		glColor3f(0.55f, 0.15f, 0.0f);
+		glVertex3f(200.0, 150.0, 200.0);
+		glColor3f(0.55f, 0.15f, 0.0f);
+		glVertex3f(200.0, 0.0, 200.0);
+		glColor3f(0.55f, 0.15f, 0.0f);
+		glVertex3f(200.0, 0.0, -200.0);
+	glEnd();
+
+	/* draw the left side wall */
+	glBegin(GL_QUADS);
+		glColor3f(0.55f, 0.15f, 0.0f);
+		glVertex3f(-200.0, 150.0, -200.0);
+		glColor3f(0.55f, 0.15f, 0.0f);
+		glVertex3f(-200.0, 150.0, 200.0);
+		glColor3f(0.55f, 0.15f, 0.0f);
+		glVertex3f(-200.0, 0.0, 200.0);
+		glColor3f(0.55f, 0.15f, 0.0f);
+		glVertex3f(-200.0, 0.0, -200.0);
+	glEnd();
+
+	/* draw the ceiling */
+	glBegin(GL_QUADS);
+		glColor3f(0.55f, 0.15f, 0.0f);
+		glVertex3f(-200.0, 150.0, -200.0);
+		glColor3f(0.55f, 0.15f, 0.0f);
+		glVertex3f(-200.0, 150.0, 200.0);
+		glColor3f(0.55f, 0.15f, 0.0f);;
+		glVertex3f(200.0, 150.0, 200.0);
+		glColor3f(0.55f, 0.15f, 0.0f);
+		glVertex3f(200.0, 150.0, -200.0);
+	glEnd();
+
+	/*draw the front wall */
+	glBegin(GL_QUADS);
+		glColor3f(0.55f, 0.15f, 0.0f);
+		glVertex3f(200.0, 150.0, -200.0);
+		glColor3f(0.55f, 0.15f, 0.0f);
+		glVertex3f(200.0, 0.0, -200.0);
+		glColor3f(0.55f, 0.15f, 0.0f);
+		glVertex3f(-200.0, 0.0, -200.0);
+		glColor3f(0.55f, 0.15f, 0.0f);
+		glVertex3f(-200.0, 150.0, -200.0);
+	glEnd();
+
+	/*draw the back wall */
+	glBegin(GL_QUADS);
+		glColor3f(0.2f, 0.2f, 0.2f);
+		glVertex3f(200.0, 150.0, 200.0);
+		glColor3f(0.4f, 0.4f, 0.4f);
+		glVertex3f(200.0, 0.0, 200.0);
+		glColor3f(0.6f, 0.6f, 0.6f);
+		glVertex3f(-200.0, 0.0, 200.0);
+		glColor3f(0.8f, 0.8f, 0.8f);
+		glVertex3f(-200.0, 150.0, 200.0);
+	glEnd();
 
 	/* draw 12 cubes with different colors */
 	drawcube(75, 57, 2);
@@ -80,6 +135,12 @@ void display(void)
 	drawcube(-3, 12, 1);
 	drawcube(46, 35, 2);
 	drawcube(37, -2, 3);
+
+	glPushMatrix();
+	glTranslated(0.4, 0, 0.4);
+	table(0.6, 0.02, 0.02, 0.3);
+	glPopMatrix();
+
 	glutSwapBuffers();
 }
 
