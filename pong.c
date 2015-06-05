@@ -56,8 +56,6 @@ static paddle_t *winner = NULL;
 static ball_t ball = {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.02, 0.006, 0.01, 3.14, 14.3, 31.4}, 0.05, {1.0, 1.0, 1.0}};
 
 static char paused = 0;
-static char wireframe = 0;
-static char alpha = 1;
 static char light = 1;
 static int frameInterval = (CLOCKS_PER_SEC / 100);
 
@@ -578,21 +576,11 @@ void display(void)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glColor3f(1.0, 1.0, 1.0);
 
-	if (wireframe)
-		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	else
-		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
 	if (light)
 		glEnable(GL_LIGHTING);
 	else
 		glDisable(GL_LIGHTING);
-
-	if (alpha)
-		glEnable(GL_BLEND);
-	else
-		glDisable(GL_BLEND);
-
+		
 	glPushMatrix();
 		glLoadIdentity();
 		glTranslatef(-eye[0], -eye[1], -eye[2]);
@@ -752,12 +740,6 @@ void keys(unsigned char key, int x, int y)
 				frameInterval = 1;
 			printf("Interval %d\n", frameInterval);
 			break;
-		case 'w': // wireframe toggle
-			wireframe = !wireframe;
-			break;
-		case 'a': // alpha-blending toggle
-			alpha = !alpha;
-			break;
 		case 'l': // light toggle
 			light = !light;
 			break;
@@ -835,23 +817,7 @@ void myReshape(int w, int h)
 
 void disablePointer()
 {
-#ifdef WIN32
 	ShowCursor(FALSE);
-#endif
-
-#ifdef LINUX
-  if ( None == pointer ) {
-	  char bm[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-	  Pixmap pix = XCreateBitmapFromData( dpy, win, bm, 8, 8 );
-	  XColor black;
-	  memset( &black, 0, sizeof( XColor ) );
-	  black.flags = DoRed | DoGreen | DoBlue;
-	  pointer = XCreatePixmapCursor( dpy, pix, pix, &black, &black, 0, 0 );
-	  XFreePixmap( dpy, pix );
-  }
-  XDefineCursor( dpy, win, pointer );
-  XSync( dpy, False ); /* again, optional */
-#endif
 }
 
 void initGL()
