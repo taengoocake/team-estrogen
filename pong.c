@@ -328,7 +328,7 @@ void colorcube()
 	polygon(0,1,5,4);
 }
 
-void kegel()
+void weight()
 {
 	GLfloat x,y,z,phi,r, thet;
     double c = 3.14159/180.0;
@@ -567,7 +567,7 @@ void drawLight()
 {
 	glPushMatrix();
 		glScalef(2.0, 2.0, 1.0);
-		kegel();
+		weight();
 	glPopMatrix();
 }
 
