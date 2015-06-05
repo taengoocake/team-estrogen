@@ -1,3 +1,12 @@
+//Main things to remember right now.
+// '+' speeds up
+//'-' slows down
+//use arrow keys to change camera position slightly
+//1-5 changes to preset camera positions
+//space pauses
+
+
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <GL/glut.h>
@@ -9,12 +18,11 @@
 
 #define PADDLE1		1
 #define PADDLE2		2
-#define BAL			3
+#define BALL		3
 #define PLAYFIELD	4
 #define LIGHT		5
 
-// data structuren voor
-// paddle en bal
+//data structures for paddle and ball  
 
 typedef struct {
 	GLfloat position[3]; // x, y, z
@@ -31,7 +39,7 @@ typedef struct {
 	GLfloat color[3]; // red, green, blue
 } ball_t;
 
-// hoekpunten nummeren en coordinaten vastleggen
+// Vertices numbers and camera
 static GLfloat vertices[][3] =	{
 				{-1.0,-1.0,-1.0},{1.0,-1.0,-1.0},
 				{1.0,1.0,-1.0},{-1.0,1.0,-1.0},
@@ -40,13 +48,12 @@ static GLfloat vertices[][3] =	{
 				};
 
 static GLfloat eye[] = {0.0, 0.0, 7.0};
-static GLfloat schil[] = {15.0, 85.0, 0.0};
+static GLfloat camera[] = {15.0, 85.0, 0.0};
 
 static paddle_t paddle1 = {{-2.0, 0.0, 0.0}, {0.3, 0.3, 0.05}, {0.0, 1.0, 0.0}, 0};
 static paddle_t paddle2 = {{2.0, 0.0, -.0}, {0.3, 0.3, 0.05}, {0.0, 0.0, 1.0}, 0};
 static paddle_t *winner = NULL;
-static ball_t bal = {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.02, 0.006, 0.01, 3.14, 14.3, 31.4}, 0.05, {1.0, 1.0, 1.0}};
-static GLfloat rocketRide = 0.0;
+static ball_t ball = {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.02, 0.006, 0.01, 3.14, 14.3, 31.4}, 0.05, {1.0, 1.0, 1.0}};
 
 static char paused = 0;
 static char wireframe = 0;
@@ -59,65 +66,65 @@ GLfloat rnd()
 	return (rand() % 255) / 255.0;
 }
 
-void relaunchBal()
+void relaunchBall()
 {
 	if (winner == &paddle1) {
-		bal.position[0] = paddle1.position[0] + paddle1.size[2];
-		bal.position[1] = paddle1.position[1];
-		bal.position[2] = paddle1.position[2];
+		ball.position[0] = paddle1.position[0] + paddle1.size[2];
+		ball.position[1] = paddle1.position[1];
+		ball.position[2] = paddle1.position[2];
 		
-		bal.delta[0] = rnd() / 20.0 + 0.005;
-		bal.delta[1] = rnd() / 20.0 + 0.005;
-		bal.delta[2] = rnd() / 20.0 + 0.005;
+		ball.delta[0] = rnd() / 20.0 + 0.005;
+		ball.delta[1] = rnd() / 20.0 + 0.005;
+		ball.delta[2] = rnd() / 20.0 + 0.005;
 
-		if (bal.delta[0] < 0.0)
-			bal.delta[0] = -bal.delta[0];
+		if (ball.delta[0] < 0.0)
+			ball.delta[0] = -ball.delta[0];
 		if (rand() & 1)
-			bal.delta[1] = -bal.delta[1];
+			ball.delta[1] = -ball.delta[1];
 		if (rand() & 1)
-			bal.delta[2] = -bal.delta[2];
+			ball.delta[2] = -ball.delta[2];
 	} else {
-		bal.position[0] = paddle2.position[0] - paddle2.size[2];
-		bal.position[1] = paddle2.position[1];
-		bal.position[2] = paddle2.position[2];
+		ball.position[0] = paddle2.position[0] - paddle2.size[2];
+		ball.position[1] = paddle2.position[1];
+		ball.position[2] = paddle2.position[2];
 		
-		bal.delta[0] = rnd() / 20.0 + 0.01;
-		bal.delta[1] = rnd() / 20.0 + 0.005;
-		bal.delta[2] = rnd() / 20.0 + 0.005;
+		ball.delta[0] = rnd() / 20.0 + 0.01;
+		ball.delta[1] = rnd() / 20.0 + 0.005;
+		ball.delta[2] = rnd() / 20.0 + 0.005;
 
-		if (bal.delta[0] > 0.0)
-			bal.delta[0] = -bal.delta[0];
+		if (ball.delta[0] > 0.0)
+			ball.delta[0] = -ball.delta[0];
 		if (rand() & 1)
-			bal.delta[1] = -bal.delta[1];
+			ball.delta[1] = -ball.delta[1];
 		if (rand() & 1)
-			bal.delta[2] = -bal.delta[2];
+			ball.delta[2] = -ball.delta[2];
 	}
 	
-	bal.color[0] = 1.0;
-	bal.color[1] = 1.0;
-	bal.color[2] = 1.0;
+	ball.color[0] = 1.0;
+	ball.color[1] = 1.0;
+	ball.color[2] = 1.0;
 }
 
 void opponentMove()
 {
-	// far leet AI stuff
+	// super cool AI stuff
 	static GLfloat dy = 0.03, dz = 0.03;
 
-	if (bal.delta[0] < 0.0)
+	if (ball.delta[0] < 0.0)
 		return;
 	
-	if (paddle2.position[1] < bal.position[1] && paddle2.position[1] + paddle2.size[1] + dy <= 1.0)
+	if (paddle2.position[1] < ball.position[1] && paddle2.position[1] + paddle2.size[1] + dy <= 1.0)
 		paddle2.position[1] += dy;
-	else if (paddle2.position[1] > bal.position[1] && paddle2.position[1] - paddle2.size[1] - dy >= -1.0)
+	else if (paddle2.position[1] > ball.position[1] && paddle2.position[1] - paddle2.size[1] - dy >= -1.0)
 		paddle2.position[1] -= dy;
 	
-	if (paddle2.position[2] < bal.position[2] && paddle2.position[2] + paddle2.size[0] + dz <= 1.0)
+	if (paddle2.position[2] < ball.position[2] && paddle2.position[2] + paddle2.size[0] + dz <= 1.0)
 		paddle2.position[2] += dz;
-	else if (paddle2.position[2] > bal.position[2] && paddle2.position[2] - paddle2.size[0] - dz >= -1.0)
+	else if (paddle2.position[2] > ball.position[2] && paddle2.position[2] - paddle2.size[0] - dz >= -1.0)
 		paddle2.position[2] -= dz;
 }
 
-void moveBal(void)
+void moveBall(void)
 {
 	static clock_t nextTime = 0;
 	clock_t currentTime = clock();
@@ -127,145 +134,142 @@ void moveBal(void)
 
 	opponentMove();
 
-	bal.position[0] += bal.delta[0];
-	bal.position[1] += bal.delta[1];
-	bal.position[2] += bal.delta[2];
+	ball.position[0] += ball.delta[0];
+	ball.position[1] += ball.delta[1];
+	ball.position[2] += ball.delta[2];
 
 	// Bounce
-	if (bal.position[1] >= 1.0 - bal.radius || bal.position[1] <= -1.0 + bal.radius)
-		bal.delta[1] = -bal.delta[1];
-	if (bal.position[2] >= 1.0 - bal.radius || bal.position[2] <= -1.0 + bal.radius)
-		bal.delta[2] = -bal.delta[2];
+	if (ball.position[1] >= 1.0 - ball.radius || ball.position[1] <= -1.0 + ball.radius)
+		ball.delta[1] = -ball.delta[1];
+	if (ball.position[2] >= 1.0 - ball.radius || ball.position[2] <= -1.0 + ball.radius)
+		ball.delta[2] = -ball.delta[2];
 
 	// Lame collision detection for the paddles
 	// The ball bounced on the paddle
-	if (bal.position[0] < -2.0 + bal.radius + paddle1.size[2]
-		&& bal.delta[0] < 0.0
-		&& bal.position[1] >= paddle1.position[1] - paddle1.size[1]
-		&& bal.position[1] <= paddle1.position[1] + paddle1.size[1]
-		&& bal.position[2] >= paddle1.position[2] - paddle1.size[0]
-		&& bal.position[2] <= paddle1.position[2] + paddle1.size[0]
+	if (ball.position[0] < -2.0 + ball.radius + paddle1.size[2]
+		&& ball.delta[0] < 0.0
+		&& ball.position[1] >= paddle1.position[1] - paddle1.size[1]
+		&& ball.position[1] <= paddle1.position[1] + paddle1.size[1]
+		&& ball.position[2] >= paddle1.position[2] - paddle1.size[0]
+		&& ball.position[2] <= paddle1.position[2] + paddle1.size[0]
 	) {
 		// paddle1 bounces ball
-		bal.delta[0] = -bal.delta[0];
+		ball.delta[0] = -ball.delta[0];
 
-		bal.color[0] = paddle1.color[0];
-		bal.color[1] = paddle1.color[1];
-		bal.color[2] = paddle1.color[2];
+		ball.color[0] = paddle1.color[0];
+		ball.color[1] = paddle1.color[1];
+		ball.color[2] = paddle1.color[2];
 
-		if (bal.position[1] > paddle1.position[1] + paddle1.size[1] / 2.0
-			&& bal.position[1] <= paddle1.position[1] + paddle1.size[1] / 2.0
-			&& bal.position[2] >= paddle1.position[2] - paddle1.size[0] / 2.0
-	                && bal.position[2] <= paddle1.position[2] + paddle1.size[0] / 2.0) {
+		if (ball.position[1] > paddle1.position[1] + paddle1.size[1] / 2.0
+			&& ball.position[1] <= paddle1.position[1] + paddle1.size[1] / 2.0
+			&& ball.position[2] >= paddle1.position[2] - paddle1.size[0] / 2.0
+	                && ball.position[2] <= paddle1.position[2] + paddle1.size[0] / 2.0) {
 			// Accelerate forward
-			bal.delta[0] *= 1.5;
+			ball.delta[0] *= 1.5;
 		} else {
 			// Accelerate sideways
-			if (bal.delta[1] > 0.0) {
-				if (bal.position[1] > paddle1.position[1])
-					bal.delta[1] += 0.005;
+			if (ball.delta[1] > 0.0) {
+				if (ball.position[1] > paddle1.position[1])
+					ball.delta[1] += 0.005;
 				else
-					bal.delta[1] = -bal.delta[1] + 0.005;
+					ball.delta[1] = -ball.delta[1] + 0.005;
 			} else {
-				if (bal.position[1] < paddle1.position[1])
-					bal.delta[1] -= 0.005;
+				if (ball.position[1] < paddle1.position[1])
+					ball.delta[1] -= 0.005;
 				else
-					bal.delta[1] = -bal.delta[1] - 0.005;
+					ball.delta[1] = -ball.delta[1] - 0.005;
 			}
 			
-			if (bal.delta[2] > 0.0) {
-				if (bal.position[2] > paddle1.position[2])
-					bal.delta[2] += 0.005;
+			if (ball.delta[2] > 0.0) {
+				if (ball.position[2] > paddle1.position[2])
+					ball.delta[2] += 0.005;
 				else
-					bal.delta[2] = -bal.delta[2] + 0.005;
+					ball.delta[2] = -ball.delta[2] + 0.005;
 			} else {
-				if (bal.position[2] < paddle1.position[2])
-					bal.delta[2] -= 0.005;
+				if (ball.position[2] < paddle1.position[2])
+					ball.delta[2] -= 0.005;
 				else
-					bal.delta[2] = -bal.delta[2] - 0.005;
+					ball.delta[2] = -ball.delta[2] - 0.005;
 			}
 		}
 	}
 
 	// Copy 'n paste evilness
-	if (bal.position[0] > 2.0 - bal.radius - paddle2.size[2]
-		&& bal.delta[0] > 0.0
-		&& bal.position[1] >= paddle2.position[1] - paddle2.size[1]
-		&& bal.position[1] <= paddle2.position[1] + paddle2.size[1]
-		&& bal.position[2] >= paddle2.position[2] - paddle2.size[0]
-		&& bal.position[2] <= paddle2.position[2] + paddle2.size[0]
+	if (ball.position[0] > 2.0 - ball.radius - paddle2.size[2]
+		&& ball.delta[0] > 0.0
+		&& ball.position[1] >= paddle2.position[1] - paddle2.size[1]
+		&& ball.position[1] <= paddle2.position[1] + paddle2.size[1]
+		&& ball.position[2] >= paddle2.position[2] - paddle2.size[0]
+		&& ball.position[2] <= paddle2.position[2] + paddle2.size[0]
 	) {
 		// paddle2 bounces ball
-		bal.delta[0] = -bal.delta[0];
+		ball.delta[0] = -ball.delta[0];
 
-		bal.color[0] = paddle2.color[0];
-		bal.color[1] = paddle2.color[1];
-		bal.color[2] = paddle2.color[2];
+		ball.color[0] = paddle2.color[0];
+		ball.color[1] = paddle2.color[1];
+		ball.color[2] = paddle2.color[2];
 
-		if (bal.position[1] > paddle2.position[1] + paddle2.size[1] / 2.0
-			&& bal.position[1] <= paddle2.position[1] + paddle2.size[1] / 2.0
-			&& bal.position[2] >= paddle2.position[2] - paddle2.size[0] / 2.0
-	                && bal.position[2] <= paddle2.position[2] + paddle2.size[0] / 2.0) {
+		if (ball.position[1] > paddle2.position[1] + paddle2.size[1] / 2.0
+			&& ball.position[1] <= paddle2.position[1] + paddle2.size[1] / 2.0
+			&& ball.position[2] >= paddle2.position[2] - paddle2.size[0] / 2.0
+	                && ball.position[2] <= paddle2.position[2] + paddle2.size[0] / 2.0) {
 			// Accelerate forward
-			bal.delta[0] *= 1.5;
+			ball.delta[0] *= 1.5;
 		} else {
 			// Accelerate sideways
-			if (bal.delta[1] > 0.0) {
-				if (bal.position[1] > paddle2.position[1])
-					bal.delta[1] += 0.005;
+			if (ball.delta[1] > 0.0) {
+				if (ball.position[1] > paddle2.position[1])
+					ball.delta[1] += 0.005;
 				else
-					bal.delta[1] = -bal.delta[1] + 0.005;
+					ball.delta[1] = -ball.delta[1] + 0.005;
 			} else {
-				if (bal.position[1] < paddle2.position[1])
-					bal.delta[1] -= 0.005;
+				if (ball.position[1] < paddle2.position[1])
+					ball.delta[1] -= 0.005;
 				else
-					bal.delta[1] = -bal.delta[1] - 0.005;
+					ball.delta[1] = -ball.delta[1] - 0.005;
 			}
 			
-			if (bal.delta[2] > 0.0) {
-				if (bal.position[2] > paddle2.position[2])
-					bal.delta[2] += 0.005;
+			if (ball.delta[2] > 0.0) {
+				if (ball.position[2] > paddle2.position[2])
+					ball.delta[2] += 0.005;
 				else
-					bal.delta[2] = -bal.delta[2] + 0.005;
+					ball.delta[2] = -ball.delta[2] + 0.005;
 			} else {
-				if (bal.position[2] < paddle2.position[2])
-					bal.delta[2] -= 0.005;
+				if (ball.position[2] < paddle2.position[2])
+					ball.delta[2] -= 0.005;
 				else
-					bal.delta[2] = -bal.delta[2] - 0.005;
+					ball.delta[2] = -ball.delta[2] - 0.005;
 			}
 		}
 	}
 	
 
-	// So the ball was not bounced
-	if (bal.position[0] > 2.0 - bal.radius) {
+	// If the ball didn't bounce
+	if (ball.position[0] > 2.0 - ball.radius) {
 		winner = &paddle1;
 		paddle1.score++;
-		relaunchBal();
+		relaunchBall();
 	}
-	else if (bal.position[0] < -2.0 + bal.radius) {
+	else if (ball.position[0] < -2.0 + ball.radius) {
 		winner = &paddle2;
 		paddle2.score++;
-		relaunchBal();
+		relaunchBall();
 	}
 	
 	// Normalize
-	if (bal.position[1] > 1.0 - bal.radius)
-		bal.position[1] = 1.0 - bal.radius;
-	else if (bal.position[1] < -1.0 + bal.radius)
-		bal.position[1] = -1.0 + bal.radius;
-	if (bal.position[2] > 1.0 - bal.radius)
-		bal.position[2] = 1.0 - bal.radius;
-	else if (bal.position[2] < -1.0 + bal.radius)
-		bal.position[2] = -1.0 + bal.radius;
+	if (ball.position[1] > 1.0 - ball.radius)
+		ball.position[1] = 1.0 - ball.radius;
+	else if (ball.position[1] < -1.0 + ball.radius)
+		ball.position[1] = -1.0 + ball.radius;
+	if (ball.position[2] > 1.0 - ball.radius)
+		ball.position[2] = 1.0 - ball.radius;
+	else if (ball.position[2] < -1.0 + ball.radius)
+		ball.position[2] = -1.0 + ball.radius;
 
 	// it's a spinning ball
-	bal.orientation[0] += bal.delta[3];
-	bal.orientation[1] += bal.delta[4];
-	bal.orientation[2] += bal.delta[5];
-	
-	// rocket moving thingy
-	rocketRide -= 0.2;
+	ball.orientation[0] += ball.delta[3];
+	ball.orientation[1] += ball.delta[4];
+	ball.orientation[2] += ball.delta[5];
 	
 	// set frequency to 100hz
 	nextTime = currentTime + frameInterval;
@@ -281,7 +285,7 @@ void text(GLint x, GLint y, char *text)
 }
 
 void polygon(int a, int b, int c , int d)
-// bepaalt het polygon met hoekpunten a, b, c en d.
+// Makes a polygon with vertices a, b, c, and d.
 {
 	glBegin(GL_POLYGON);
 		glVertex3fv(vertices[a]);
@@ -303,8 +307,7 @@ void cube()
 
 void colorcube()
 {
-	// elk zijvlak heeft een andere kleur. 
-	// De 8 hoekpunten zijn genummerd: 0..7. 
+	// Each face has a different colour
 
     glColor3ub(255,0,0); 
 	polygon(0,3,2,1);
@@ -328,14 +331,13 @@ void colorcube()
 void kegel()
 {
 	GLfloat x,y,z,phi,r, thet;
-	// c is omreken factor van graden naar radialen
     double c = 3.14159/180.0;
 
 	x = y = 0.0;
 	z = 1.0;
 	r = 1.0;
 
-	// teken onderkant
+	// underside
 	glBegin(GL_TRIANGLE_FAN);
 		glVertex3f(x, y, z);
 
@@ -348,7 +350,7 @@ void kegel()
 
 	x = y = 0.0;
 
-	// teken punt
+	// node
 	glBegin(GL_TRIANGLE_FAN);
 		glVertex3f(x, y, -z);
 
@@ -377,16 +379,14 @@ void kegel()
 	}
 }
 
-void cilinder()
+void cylinder()
 {
 	GLfloat x,y,z,phi;
-	// c is omreken factor van graden naar radialen
     double c = 3.14159/180.0;
 
 	x = y = 0.0;
 	z = 1.0;
 
-	// teken deksels
 	glBegin(GL_TRIANGLE_FAN);
 		glVertex3f(x, y, z);
 
@@ -408,9 +408,8 @@ void cilinder()
 			y = sin(c*phi);
 			glVertex3f(x, y, z);
 		}
-	glEnd();
+	glEnd()
 
-	// teken omtrek
 	for (z = -1.0; z <= 0.8; z += 0.20) {
 		glBegin(GL_QUAD_STRIP);
 			for (phi = 0.0; phi < 360; phi += 20.0) {
@@ -434,7 +433,7 @@ void cilinder()
 	}
 }
 
-void assenstelsel()
+void coordinates()
 {
 	glBegin(GL_LINES);
 		glColor3f(1.0, 0.0, 0.0);
@@ -450,7 +449,7 @@ void assenstelsel()
 		glVertex3f(0.0, 0.0, 100.0);
 	glEnd();
 
-	glLineStipple(1, 0xF00F);	// geef stippeling dmv bitpartoon
+	glLineStipple(1, 0xF00F);
 	glEnable(GL_LINE_STIPPLE);
 	glBegin(GL_LINES);
 		glColor3f(1.0, 0.0, 0.0);
@@ -535,16 +534,16 @@ void drawPaddle2()
 		glRotatef(90.0, 1.0, 0.0, 0.0);
 		glScalef(1.0, 0.15, 1.0);
 		glTranslatef(0.0, 5.0, 0.0);
-		cilinder();
+		cylinder();
 
 		glTranslatef(0.0, -10.0, 0.0);
-		cilinder();
+		cylinder();
 	glPopMatrix();
 }
 
-void drawBal()
+void drawBall()
 {
-	// left bal
+	// left ball
 	glPushMatrix();
 		glTranslatef(-2.0, 0.0, 0.0);
 		glutSolidSphere(1.0, 6, 6);
@@ -554,10 +553,10 @@ void drawBal()
 	glPushMatrix();
 		glRotatef(90.0, 0.0, 1.0, 0.0);
 		glScalef(0.3, 0.3, 2.0);
-		cilinder();
+		cylinder();
 	glPopMatrix();
 	
-	// right bal
+	// right ball
 	glPushMatrix();
 		glTranslatef(2.0, 0.0, 0.0);
 		glutSolidSphere(1.0, 6, 6);
@@ -569,40 +568,6 @@ void drawLight()
 	glPushMatrix();
 		glScalef(2.0, 2.0, 1.0);
 		kegel();
-	glPopMatrix();
-}
-
-void drawRocket()
-{
-	// base
-	glPushMatrix();
-		glRotatef(90.0, 1.0, 0.0, 0.0);
-		glColor4f(1.0, 1.0, 1.0, 1.0);
-		glScalef(1.0, 1.0, 2.0);
-		cilinder();
-	glPopMatrix();
-
-	// cone
-	glPushMatrix();
-		glRotatef(90.0, 1.0, 0.0, 0.0);
-		glTranslatef(0.0, 0.0, -3.0);
-		glColor4f(1.0, 0.0, 0.0, 1.0);
-		kegel();
-	glPopMatrix();
-
-	// wings
-	glPushMatrix();
-		glColor3f(0.5, 0.5, 0.5);
-		glScalef(2.0, 0.7, 0.2);
-		glTranslatef(0.0, -1.5, 0.0);
-		cube();
-	glPopMatrix();
-
-	glPushMatrix();
-		glColor3f(0.5, 0.5, 0.5);
-		glScalef(0.2, 0.7, 2.0);
-		glTranslatef(0.0, -1.5, 0.0);
-		cube();
 	glPopMatrix();
 }
 
@@ -636,12 +601,12 @@ void display(void)
 		glPushMatrix();
 		{
 			GLfloat LightPosition[] = { 0.0, 0.0, 0.0, 1.0f };
-			glTranslatef(bal.position[0], bal.position[1], bal.position[2]);
+			glTranslatef(ball.position[0], ball.position[1], ball.position[2]);
 			glLightfv(GL_LIGHT0, GL_POSITION,LightPosition);
 		}
 		glPopMatrix();
 
-		// licht uit voor score
+		// Light off for the score
 			glDisable(GL_LIGHTING);
 			// player 1 score
 			glColor3f(0.0, 1.0, 0.0);
@@ -652,23 +617,23 @@ void display(void)
 			glColor3f(0.0, 0.0, 1.0);
 			sprintf(buffer, "%d", paddle2.score);
 			text(2, 2, buffer);
-		// licht aan
+		// light on
 		if (light)
 			glEnable(GL_LIGHTING);
 
-		glRotatef(schil[0], 1.0, 0.0, 0.0);
-		glRotatef(schil[1], 0.0, 1.0, 0.0);
-		glRotatef(schil[2], 0.0, 0.0, 1.0);
+		glRotatef(camera[0], 1.0, 0.0, 0.0);
+		glRotatef(camera[1], 0.0, 1.0, 0.0);
+		glRotatef(camera[2], 0.0, 0.0, 1.0);
 
 		// the ball
-		glColor3f(bal.color[0], bal.color[1], bal.color[2]);
+		glColor3f(ball.color[0], ball.color[1], ball.color[2]);
 		glPushMatrix();
-			glTranslatef(bal.position[0], bal.position[1], bal.position[2]);
-			glScalef(bal.radius, bal.radius, bal.radius);
-			glRotatef(bal.orientation[0], 1.0, 0.0, 0.0);
-			glRotatef(bal.orientation[0], 0.0, 1.0, 0.0);
-			glRotatef(bal.orientation[0], 0.0, 0.0, 1.0);
-			drawBal();
+			glTranslatef(ball.position[0], ball.position[1], ball.position[2]);
+			glScalef(ball.radius, ball.radius, ball.radius);
+			glRotatef(ball.orientation[0], 1.0, 0.0, 0.0);
+			glRotatef(ball.orientation[0], 0.0, 1.0, 0.0);
+			glRotatef(ball.orientation[0], 0.0, 0.0, 1.0);
+			drawBall();
 		glPopMatrix();
 
 		// opponent paddle
@@ -691,20 +656,13 @@ void display(void)
 		glColor4f(1.0, 0.0, 0.0, 0.3);
 		glBlendFunc(GL_SRC_ALPHA,GL_ONE);
 		glPushMatrix();
-			// object bestaat uit 2 balken
+			// object consists of two walls
 			glTranslatef(-1.0, 0.0, 0.0);
 			drawWall();
 			glTranslatef(2.0, 0.0, 0.0);
 			drawWall();
 		glPopMatrix();
 
-		glColor3f(1.0, 1.0, 1.0);
-		glPushMatrix();
-			glRotatef(rocketRide, 1.0, 0.0, 0.5);
-			glTranslatef(0.0, 0.0, 5.0);
-			glScalef(0.2, 0.2, 0.2);
-			drawRocket();
-		glPopMatrix();
 	glPopMatrix();
 
 	glFlush();
@@ -719,17 +677,17 @@ void mouseMove(int x, int y)
 	if (paused)
 		return;
 
-	// naar boven
+	// moving up
 	if (oldY > y && paddle1.position[1] < 1.0 - paddle1.size[1] - 0.01)
 		paddle1.position[1] += 0.05;
-	// naar beneden
+	// downwards
 	if (oldY < y && paddle1.position[1] > -1.0 + paddle1.size[1] + 0.01)
 		paddle1.position[1] -= 0.05;
 
-	// naar rechts
+	// to the right
 	if (oldX < x && paddle1.position[2] < 1.0 - paddle1.size[0] - 0.01)
 		paddle1.position[2] += 0.05;
-	// naar links
+	// to the left
 	if (oldX > x && paddle1.position[2] > -1.0 + paddle1.size[0] + 0.01)
 		paddle1.position[2] -= 0.05;
 
@@ -761,16 +719,16 @@ void special(int value, int x, int y)
 			glutReshapeWindow(500, 500);
 			break;
 		case GLUT_KEY_UP:
-			schil[0] -= 3.0;
+			camera[0] -= 3.0;
 			break;
 		case GLUT_KEY_DOWN:
-			schil[0] += 3.0;
+			camera[0] += 3.0;
 			break;
 		case GLUT_KEY_RIGHT:
-			schil[1] += 3.0;
+			camera[1] += 3.0;
 			break;
 		case GLUT_KEY_LEFT:
-			schil[1] -= 3.0;
+			camera[1] -= 3.0;
 			break;
 
     }
@@ -813,47 +771,47 @@ void keys(unsigned char key, int x, int y)
 			eye[2] += 1.0;
 			break;
 		case 'i':
-			relaunchBal();
+			relaunchBall();
 			break;
 		case '1': // restore original position
 			eye[0] = 0.0;
 			eye[1] = 0.0;
 			eye[2] = 7.0;
-			schil[0] = 15.0;
-			schil[1] = 85.0;
-			schil[2] = 0.0;
+			camera[0] = 15.0;
+			camera[1] = 85.0;
+			camera[2] = 0.0;
 			break;
 		case '2': // backview
 			eye[0] = 0.0;
 			eye[1] = 0.0;
 			eye[2] = 7.0;
-			schil[0] = 0.0;
-			schil[1] = 90.0;
-			schil[2] = 0.0;
+			camera[0] = 0.0;
+			camera[1] = 90.0;
+			camera[2] = 0.0;
 			break;
 		case '3': // topview
 			eye[0] = 0.0;
 			eye[1] = 0.0;
 			eye[2] = 7.0;
-			schil[0] = 90.0;
-			schil[1] = 90.0;
-			schil[2] = 0.0;
+			camera[0] = 90.0;
+			camera[1] = 90.0;
+			camera[2] = 0.0;
 			break;
 		case '4': // reverse backview (crazy)
 			eye[0] = 0.0;
 			eye[1] = 0.0;
 			eye[2] = 7.0;
-			schil[0] = 0.0;
-			schil[1] = -90.0;
-			schil[2] = 0.0;
+			camera[0] = 0.0;
+			camera[1] = -90.0;
+			camera[2] = 0.0;
 			break;
 		case '5': // bottomview
 			eye[0] = 0.0;
 			eye[1] = 0.0;
 			eye[2] = 7.0;
-			schil[0] = -90.0;
-			schil[1] = 90.0;
-			schil[2] = 0.0;
+			camera[0] = -90.0;
+			camera[1] = 90.0;
+			camera[2] = 0.0;
 			break;
 		default:
 			break;
@@ -923,18 +881,18 @@ int main(int argc, char **argv)
 
 	// create the window
 	glutInitWindowSize(500, 500);
-	glutCreateWindow("CGR - Meesterstuk van Stefan Verhoeff (VTI7-A3)");
+	glutCreateWindow("PONG by Team Estrogen!");
 
 	// misc initialisation
 	initGL();
 	srand( time(NULL) );
-	relaunchBal(); // initiate the ball position
+	relaunchBall(); // initiate the ball position
 	disablePointer();
 
 	// callbacks
 	glutReshapeFunc(myReshape);
 	glutDisplayFunc(display);
-	glutIdleFunc(moveBal);
+	glutIdleFunc(moveBall);
 	glutMouseFunc(mouse);
 	glutMotionFunc(mouseMove);
 	glutPassiveMotionFunc(mouseMove);
