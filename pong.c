@@ -1,8 +1,8 @@
 //Main things to remember right now.
-// '+' speeds up
-//'-' slows down
+// '+' and '-' to adjust ball speed.
 //use arrow keys to change camera position slightly
-//1-5 changes to preset camera positions
+//'c' resets camera to default
+//'z' to zoom in, 'x' to zoom out
 //space pauses
 
 
@@ -48,7 +48,7 @@ static GLfloat vertices[][3] =	{
 				};
 
 static GLfloat eye[] = {0.0, 0.0, 7.0};
-static GLfloat camera[] = {15.0, 85.0, 0.0};
+static GLfloat camera[] = {0.0, 90.0, 0.0};
 
 static paddle_t paddle1 = {{-2.0, 0.0, 0.0}, {0.3, 0.3, 0.05}, {0.0, 1.0, 0.0}, 0};
 static paddle_t paddle2 = {{2.0, 0.0, -.0}, {0.3, 0.3, 0.05}, {0.0, 0.0, 1.0}, 0};
@@ -406,7 +406,7 @@ void cylinder()
 			y = sin(c*phi);
 			glVertex3f(x, y, z);
 		}
-	glEnd()
+	glEnd();
 
 	for (z = -1.0; z <= 0.8; z += 0.20) {
 		glBegin(GL_QUAD_STRIP);
@@ -746,52 +746,20 @@ void keys(unsigned char key, int x, int y)
 		case 27: // ESCAPE key
 			exit(0);
 			break;
-		case 'r':
+		case 'z':
 			eye[2] -= 1.0;
 			break;
-		case 'R':
+		case 'x':
 			eye[2] += 1.0;
 			break;
-		case 'i':
+		case 'r':
 			relaunchBall();
 			break;
-		case '1': // restore original position
-			eye[0] = 0.0;
-			eye[1] = 0.0;
-			eye[2] = 7.0;
-			camera[0] = 15.0;
-			camera[1] = 85.0;
-			camera[2] = 0.0;
-			break;
-		case '2': // backview
+		case 'c': // restore original position
 			eye[0] = 0.0;
 			eye[1] = 0.0;
 			eye[2] = 7.0;
 			camera[0] = 0.0;
-			camera[1] = 90.0;
-			camera[2] = 0.0;
-			break;
-		case '3': // topview
-			eye[0] = 0.0;
-			eye[1] = 0.0;
-			eye[2] = 7.0;
-			camera[0] = 90.0;
-			camera[1] = 90.0;
-			camera[2] = 0.0;
-			break;
-		case '4': // reverse backview (crazy)
-			eye[0] = 0.0;
-			eye[1] = 0.0;
-			eye[2] = 7.0;
-			camera[0] = 0.0;
-			camera[1] = -90.0;
-			camera[2] = 0.0;
-			break;
-		case '5': // bottomview
-			eye[0] = 0.0;
-			eye[1] = 0.0;
-			eye[2] = 7.0;
-			camera[0] = -90.0;
 			camera[1] = 90.0;
 			camera[2] = 0.0;
 			break;
