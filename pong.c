@@ -1,650 +1,228 @@
-//Main things to remember right now.
-// '+' and '-' to adjust ball speed.
-//use arrow keys to change camera position slightly
-//'c' resets camera to default
-//'z' to zoom in, 'x' to zoom out
-//space pauses
+//3DPong.c
+//'+' speeds up the ball
+//'-' slows down the ball.
+//Use the mouse to move your player paddle (red paddle) around
+//Arrow keys tilt the camera a little bit.
+//Spacebar pauses
+//Page Up zooms in a bit. Page Down zooms out.
+//ESC displays the splash screen.
+//Changed reset ball key to r
 
+//---------------------------------------------------------------------------------------------------------
 
+#define MAXCOL 512
+#define MAXROW 256 //handles a 512x256 image.
+
+//---------------------------------------------------------------------------------------------------------
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <GL/glut.h>
 #include <time.h>
 #include <math.h>
-
 #include <windows.h>
+#include <GL/freeglut.h>
 
+//--------------------------------------------------------------------------------------------------------
 
-#define PADDLE1		1
-#define PADDLE2		2
-#define BALL		3
-#define PLAYFIELD	4
-#define LIGHT		5
+#pragma warning(disable : 4996) //disables the "sprintf" and fopen warnings because they're a pain
 
-//data structures for paddle and ball  
+//--------------------------------------------------------------------------------------------------------
 
+//definitions for the image stuff
+
+typedef unsigned char pixel;	//one handle for each pixel
+typedef char name[15];
+name image_file_name;
+
+pixel image_buf[MAXROW*MAXCOL];		//image buffer
+pixel image[MAXROW][MAXCOL] ;		//image array
+pixel p;
+name inf_name;		//filename
+FILE *inf_handle;	//file handle
+int charin;
+int r,c;
+
+//-------------------------------------------------------------------------------------------------------
+
+//definitions for the Pong
+
+//defines C-style struct for the paddle
 typedef struct {
-	GLfloat position[3]; // x, y, z
-	GLfloat size[3]; // width, height, thickness
-	GLfloat color[3]; // red, green, blue
-	GLint score;
-} paddle_t;
+	GLfloat position[3];			//x, y and z coordinates
+	GLfloat dimensions[3];			//width, height, thickness
+	GLfloat colour[3];				//RGB
+	GLint score;					//scores
+} paddle;	
 
+
+//defines C-style struct for the ball
 typedef struct {
-	GLfloat position[3]; // x, y, z
-	GLfloat orientation[3]; // rotation just for fun
-	GLfloat delta[6]; // dx, dy, dz
-	GLfloat radius;
-	GLfloat color[3]; // red, green, blue
-} ball_t;
+	GLfloat position[3];			//x, y and z coordinates
+	GLfloat rotation[3];			//rotation of the ball
+	GLfloat transformation[6];		//the change in position of the ball.
+	GLfloat rad;					//radius of circles and stuff
+	GLfloat colour[3];				//RGB
+} ball_struct;
 
-// Vertices numbers and camera
-static GLfloat vertices[][3] =	{
-				{-1.0,-1.0,-1.0},{1.0,-1.0,-1.0},
-				{1.0,1.0,-1.0},{-1.0,1.0,-1.0},
-				{-1.0,-1.0,1.0},{1.0,-1.0,1.0},
-				{1.0,1.0,1.0},{-1.0,1.0,1.0}
-				};
+//Vertices
+static GLfloat vertices[][3] =	{{-1.0f,-1.0f,-1.0f},{1.0f,-1.0f,-1.0f}, {1.0f,1.0f,-1.0f},{-1.0f,1.0f,-1.0f}, {-1.0f,-1.0f,1.0f},{1.0f,-1.0f,1.0f}, {1.0f,1.0f,1.0f},{-1.0f,1.0f,1.0f}};
 
-static GLfloat eye[] = {0.0, 0.0, 7.0};
-static GLfloat camera[] = {0.0, 90.0, 0.0};
+//The eye and camera position
+static GLfloat eye[] = {0.0f, 0.0f, 7.0f};
+static GLfloat camera[] = {0.0f, 90.0f, 0.0f};
 
-static paddle_t paddle1 = {{-2.0, 0.0, 0.0}, {0.3, 0.3, 0.05}, {0.0, 1.0, 0.0}, 0};
-static paddle_t paddle2 = {{2.0, 0.0, -.0}, {0.3, 0.3, 0.05}, {0.0, 0.0, 1.0}, 0};
-static paddle_t *winner = NULL;
-static ball_t ball = {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.02, 0.006, 0.01, 3.14, 14.3, 31.4}, 0.05, {1.0, 1.0, 1.0}};
+//Initialises the winner to NULL
+static paddle *winner = NULL;
+
+
+//Initialises the paddle details
+static paddle playerPaddle = {{-2.0f, 0.0f, 0.0f}, {0.5f, 0.2f, 0.1f}, {0.55f, 0.09f, 0.09f}, 0};
+static paddle opponentPaddle = {{2.0f, 0.0f, -0.0f}, {0.5f, 0.2f, 0.1f}, {0.45f, 0.73f, 0.8f}, 0};
+
+//Initialises the ball details
+static ball_struct ball = {{0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, {0.02f, 0.006f, 0.01f, 3.14f, 14.3f, 31.4f}, 0.05f, {1.0f, 1.0f, 1.0f}};
 
 static char paused = 0;
-static char light = 1;
-static int frameInterval = (CLOCKS_PER_SEC / 100);
+//static char light = 1;
+static int ball_speed = (CLOCKS_PER_SEC / 100);
 
-GLfloat rnd()
+
+//Function prototypes
+
+//For the main stuff
+void initGL();
+void Reshape(int w, int h);
+void keys(unsigned char key, int x, int y);
+void specialKeys(int value, int x, int y);
+void mouseButton(int button, int state, int x, int y);
+void DisplayImage(void);
+void opponentMove();
+void resetBallPosition();
+void moveBall(void);
+void polygon(int a, int b, int c , int d);
+void cube();
+void drawWall();
+void drawPaddle();
+void drawBall();
+void display(void);
+void mouseMove(int x, int y);
+void scoreText(GLint x, GLint y, char *scoreText);
+
+
+//For the splash screen
+void DisplayImage(void);
+void WriteCaptions(void);
+void InputImage(void);
+void mouseButton(int button, int state, int x, int y);
+
+//----------------------------------------------------------------------------------------------
+
+int main(int argc, char **argv)
 {
-	return (rand() % 255) / 255.0;
-}
+	//Initialises GLUT
+	glutInit(&argc, argv);
+	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH);
 
-void relaunchBall()
-{
-	if (winner == &paddle1) {
-		ball.position[0] = paddle1.position[0] + paddle1.size[2];
-		ball.position[1] = paddle1.position[1];
-		ball.position[2] = paddle1.position[2];
-		
-		ball.delta[0] = rnd() / 20.0 + 0.005;
-		ball.delta[1] = rnd() / 20.0 + 0.005;
-		ball.delta[2] = rnd() / 20.0 + 0.005;
-
-		if (ball.delta[0] < 0.0)
-			ball.delta[0] = -ball.delta[0];
-		if (rand() & 1)
-			ball.delta[1] = -ball.delta[1];
-		if (rand() & 1)
-			ball.delta[2] = -ball.delta[2];
-	} else {
-		ball.position[0] = paddle2.position[0] - paddle2.size[2];
-		ball.position[1] = paddle2.position[1];
-		ball.position[2] = paddle2.position[2];
-		
-		ball.delta[0] = rnd() / 20.0 + 0.01;
-		ball.delta[1] = rnd() / 20.0 + 0.005;
-		ball.delta[2] = rnd() / 20.0 + 0.005;
-
-		if (ball.delta[0] > 0.0)
-			ball.delta[0] = -ball.delta[0];
-		if (rand() & 1)
-			ball.delta[1] = -ball.delta[1];
-		if (rand() & 1)
-			ball.delta[2] = -ball.delta[2];
-	}
+	//Initialises the window for the program display
+	glutInitWindowSize(600, 600);
+	glutInitWindowPosition(100, 100);
+	glutCreateWindow("PONG by Team Estrogen!");
 	
-	ball.color[0] = 1.0;
-	ball.color[1] = 1.0;
-	ball.color[2] = 1.0;
-}
+	initGL(); //additional initialisation
 
-void opponentMove()
-{
-	// super cool AI stuff
-	static GLfloat dy = 0.03, dz = 0.03;
+	srand(time(NULL)); //Gets a random number
 
-	if (ball.delta[0] < 0.0)
-		return;
-	
-	if (paddle2.position[1] < ball.position[1] && paddle2.position[1] + paddle2.size[1] + dy <= 1.0)
-		paddle2.position[1] += dy;
-	else if (paddle2.position[1] > ball.position[1] && paddle2.position[1] - paddle2.size[1] - dy >= -1.0)
-		paddle2.position[1] -= dy;
-	
-	if (paddle2.position[2] < ball.position[2] && paddle2.position[2] + paddle2.size[0] + dz <= 1.0)
-		paddle2.position[2] += dz;
-	else if (paddle2.position[2] > ball.position[2] && paddle2.position[2] - paddle2.size[0] - dz >= -1.0)
-		paddle2.position[2] -= dz;
-}
+	resetBallPosition(); //resets the ball position
 
-void moveBall(void)
-{
-	static clock_t nextTime = 0;
-	clock_t currentTime = clock();
+	//All the callback functions
+	glutReshapeFunc(Reshape);
+	glutDisplayFunc(display);
+	glutIdleFunc(moveBall);
+	glutMotionFunc(mouseMove);
+	glutPassiveMotionFunc(mouseMove);
+	glutKeyboardFunc(keys);
+	glutSpecialFunc(specialKeys);
 
-	if (nextTime >= currentTime || paused)
-		return;
-
-	opponentMove();
-
-	ball.position[0] += ball.delta[0];
-	ball.position[1] += ball.delta[1];
-	ball.position[2] += ball.delta[2];
-
-	// Bounce
-	if (ball.position[1] >= 1.0 - ball.radius || ball.position[1] <= -1.0 + ball.radius)
-		ball.delta[1] = -ball.delta[1];
-	if (ball.position[2] >= 1.0 - ball.radius || ball.position[2] <= -1.0 + ball.radius)
-		ball.delta[2] = -ball.delta[2];
-
-	// Lame collision detection for the paddles
-	// The ball bounced on the paddle
-	if (ball.position[0] < -2.0 + ball.radius + paddle1.size[2]
-		&& ball.delta[0] < 0.0
-		&& ball.position[1] >= paddle1.position[1] - paddle1.size[1]
-		&& ball.position[1] <= paddle1.position[1] + paddle1.size[1]
-		&& ball.position[2] >= paddle1.position[2] - paddle1.size[0]
-		&& ball.position[2] <= paddle1.position[2] + paddle1.size[0]
-	) {
-		// paddle1 bounces ball
-		ball.delta[0] = -ball.delta[0];
-
-		ball.color[0] = paddle1.color[0];
-		ball.color[1] = paddle1.color[1];
-		ball.color[2] = paddle1.color[2];
-
-		if (ball.position[1] > paddle1.position[1] + paddle1.size[1] / 2.0
-			&& ball.position[1] <= paddle1.position[1] + paddle1.size[1] / 2.0
-			&& ball.position[2] >= paddle1.position[2] - paddle1.size[0] / 2.0
-	                && ball.position[2] <= paddle1.position[2] + paddle1.size[0] / 2.0) {
-			// Accelerate forward
-			ball.delta[0] *= 1.5;
-		} else {
-			// Accelerate sideways
-			if (ball.delta[1] > 0.0) {
-				if (ball.position[1] > paddle1.position[1])
-					ball.delta[1] += 0.005;
-				else
-					ball.delta[1] = -ball.delta[1] + 0.005;
-			} else {
-				if (ball.position[1] < paddle1.position[1])
-					ball.delta[1] -= 0.005;
-				else
-					ball.delta[1] = -ball.delta[1] - 0.005;
-			}
-			
-			if (ball.delta[2] > 0.0) {
-				if (ball.position[2] > paddle1.position[2])
-					ball.delta[2] += 0.005;
-				else
-					ball.delta[2] = -ball.delta[2] + 0.005;
-			} else {
-				if (ball.position[2] < paddle1.position[2])
-					ball.delta[2] -= 0.005;
-				else
-					ball.delta[2] = -ball.delta[2] - 0.005;
-			}
-		}
-	}
-
-	// Copy 'n paste evilness
-	if (ball.position[0] > 2.0 - ball.radius - paddle2.size[2]
-		&& ball.delta[0] > 0.0
-		&& ball.position[1] >= paddle2.position[1] - paddle2.size[1]
-		&& ball.position[1] <= paddle2.position[1] + paddle2.size[1]
-		&& ball.position[2] >= paddle2.position[2] - paddle2.size[0]
-		&& ball.position[2] <= paddle2.position[2] + paddle2.size[0]
-	) {
-		// paddle2 bounces ball
-		ball.delta[0] = -ball.delta[0];
-
-		ball.color[0] = paddle2.color[0];
-		ball.color[1] = paddle2.color[1];
-		ball.color[2] = paddle2.color[2];
-
-		if (ball.position[1] > paddle2.position[1] + paddle2.size[1] / 2.0
-			&& ball.position[1] <= paddle2.position[1] + paddle2.size[1] / 2.0
-			&& ball.position[2] >= paddle2.position[2] - paddle2.size[0] / 2.0
-	                && ball.position[2] <= paddle2.position[2] + paddle2.size[0] / 2.0) {
-			// Accelerate forward
-			ball.delta[0] *= 1.5;
-		} else {
-			// Accelerate sideways
-			if (ball.delta[1] > 0.0) {
-				if (ball.position[1] > paddle2.position[1])
-					ball.delta[1] += 0.005;
-				else
-					ball.delta[1] = -ball.delta[1] + 0.005;
-			} else {
-				if (ball.position[1] < paddle2.position[1])
-					ball.delta[1] -= 0.005;
-				else
-					ball.delta[1] = -ball.delta[1] - 0.005;
-			}
-			
-			if (ball.delta[2] > 0.0) {
-				if (ball.position[2] > paddle2.position[2])
-					ball.delta[2] += 0.005;
-				else
-					ball.delta[2] = -ball.delta[2] + 0.005;
-			} else {
-				if (ball.position[2] < paddle2.position[2])
-					ball.delta[2] -= 0.005;
-				else
-					ball.delta[2] = -ball.delta[2] - 0.005;
-			}
-		}
-	}
-	
-
-	// If the ball didn't bounce
-	if (ball.position[0] > 2.0 - ball.radius) {
-		winner = &paddle1;
-		paddle1.score++;
-		relaunchBall();
-	}
-	else if (ball.position[0] < -2.0 + ball.radius) {
-		winner = &paddle2;
-		paddle2.score++;
-		relaunchBall();
-	}
-	
-	// Normalize
-	if (ball.position[1] > 1.0 - ball.radius)
-		ball.position[1] = 1.0 - ball.radius;
-	else if (ball.position[1] < -1.0 + ball.radius)
-		ball.position[1] = -1.0 + ball.radius;
-	if (ball.position[2] > 1.0 - ball.radius)
-		ball.position[2] = 1.0 - ball.radius;
-	else if (ball.position[2] < -1.0 + ball.radius)
-		ball.position[2] = -1.0 + ball.radius;
-
-	// it's a spinning ball
-	ball.orientation[0] += ball.delta[3];
-	ball.orientation[1] += ball.delta[4];
-	ball.orientation[2] += ball.delta[5];
-	
-	// set frequency to 100hz
-	nextTime = currentTime + frameInterval;
-	glutPostRedisplay();
-}
-
-void text(GLint x, GLint y, char *text)
-{
-	char *s;
-	glRasterPos2i(x, y);
-	for (s = text; *s; s++)
-		glutBitmapCharacter(GLUT_BITMAP_9_BY_15, *s);
-}
-
-void polygon(int a, int b, int c , int d)
-// Makes a polygon with vertices a, b, c, and d.
-{
-	glBegin(GL_POLYGON);
-		glVertex3fv(vertices[a]);
-		glVertex3fv(vertices[b]);
-		glVertex3fv(vertices[c]);
-		glVertex3fv(vertices[d]);
-	glEnd();
-}
-
-void cube()
-{
-	polygon(0,3,2,1);
-	polygon(2,3,7,6);
-	polygon(0,4,7,3);
-	polygon(1,2,6,5);
-	polygon(4,5,6,7);
-	polygon(0,1,5,4);
-}
-
-void colorcube()
-{
-	// Each face has a different colour
-
-    glColor3ub(255,0,0); 
-	polygon(0,3,2,1);
-	
-    glColor3ub(0,255,0); 
-	polygon(2,3,7,6);
-	
-	glColor3ub(0,0,255); 
-	polygon(0,4,7,3);
-
-	glColor3ub(0,255,255); 
-	polygon(1,2,6,5);
-
-	glColor3ub(255,0,255); 
-	polygon(4,5,6,7);
-
-	glColor3ub(255,255,0); 
-	polygon(0,1,5,4);
-}
-
-void weight()
-{
-	GLfloat x,y,z,phi,r, thet;
-    double c = 3.14159/180.0;
-
-	x = y = 0.0;
-	z = 1.0;
-	r = 1.0;
-
-	// underside
-	glBegin(GL_TRIANGLE_FAN);
-		glVertex3f(x, y, z);
-
-		for (phi = 0.0; phi <= 360; phi += 20.0) {
-			x = r * cos(c*phi);
-			y = r * sin(c*phi);
-			glVertex3f(x, y, z);
-		}
-	glEnd();
-
-	x = y = 0.0;
-
-	// node
-	glBegin(GL_TRIANGLE_FAN);
-		glVertex3f(x, y, -z);
-
-		for (phi = 0.0; phi <= 360; phi += 20.0) {
-			x = r * cos(c*phi);
-			y = r * sin(c*phi);
-			glVertex3f(x, y, z);
-		}
-	glEnd();
-
-	thet = 2.0 / 0.70;
-	for (z = -1.0; z <= 1.0; z += 0.1) {
-		glBegin(GL_QUAD_STRIP);
-			r = (z+1.0) / thet;
-
-			for (phi = 0.0; phi <= 360; phi += 20.0) {
-				x = r * cos(c*phi);
-				y = r * sin(c*phi);
-				glVertex3f(x, y, z);
-
-				x = r * cos(c*(phi+20.0));
-				y = r * sin(c*(phi+20.0));
-				glVertex3f(x, y, z);
-			}
-		glEnd();
-	}
-}
-
-void cylinder()
-{
-	GLfloat x,y,z,phi;
-    double c = 3.14159/180.0;
-
-	x = y = 0.0;
-	z = 1.0;
-
-	glBegin(GL_TRIANGLE_FAN);
-		glVertex3f(x, y, z);
-
-		for (phi = 0.0; phi <= 360; phi += 20.0) {
-			x = cos(c*phi);
-			y = sin(c*phi);
-			glVertex3f(x, y, z);
-		}
-	glEnd();
-
-	x = y = 0.0;
-	z = -1.0;
-
-	glBegin(GL_TRIANGLE_FAN);
-		glVertex3f(x, y, z);
-
-		for (phi = 0.0; phi <= 360; phi += 20.0) {
-			x = cos(c*phi);
-			y = sin(c*phi);
-			glVertex3f(x, y, z);
-		}
-	glEnd();
-
-	for (z = -1.0; z <= 0.8; z += 0.20) {
-		glBegin(GL_QUAD_STRIP);
-			for (phi = 0.0; phi < 360; phi += 20.0) {
-				x = cos(c*phi);
-				y = sin(c*phi);
-				glVertex3f(x, y, z);
-
-				x = cos(c*(phi+20.0));
-				y = sin(c*(phi+20.0));
-				glVertex3f(x, y, z);
-
-				x = cos(c*phi);
-				y = sin(c*phi);
-				glVertex3f(x, y, z+0.20);
-
-				x = cos(c*(phi+20.0));
-				y = sin(c*(phi+20.0));
-				glVertex3f(x, y, z+0.20);
-			}
-		glEnd();
-	}
-}
-
-void coordinates()
-{
-	glBegin(GL_LINES);
-		glColor3f(1.0, 0.0, 0.0);
-		glVertex3f(0.0, 0.0, 0.0);
-		glVertex3f(100.0, 0.0, 0.0);
-
-		glColor3f(0.0, 1.0, 0.0);
-		glVertex3f(0.0, 0.0, 0.0);
-		glVertex3f(0.0, 100.0, 0.0);
-
-		glColor3f(0.0, 0.0, 1.0);
-		glVertex3f(0.0, 0.0, 0.0);
-		glVertex3f(0.0, 0.0, 100.0);
-	glEnd();
-
-	glLineStipple(1, 0xF00F);
-	glEnable(GL_LINE_STIPPLE);
-	glBegin(GL_LINES);
-		glColor3f(1.0, 0.0, 0.0);
-		glVertex3f(0.0, 0.0, 0.0);
-		glVertex3f(-100.0, 0.0, 0.0);
-
-		glColor3f(0.0, 1.0, 0.0);
-		glVertex3f(0.0, 0.0, 0.0);
-		glVertex3f(0.0, -100.0, 0.0);
-
-		glColor3f(0.0, 0.0, 1.0);
-		glVertex3f(0.0, 0.0, 0.0);
-		glVertex3f(0.0, 0.0, -100.0);
-	glEnd();
-	glDisable(GL_LINE_STIPPLE);
-}
-
-void drawWall()
-{
-	glBegin(GL_QUADS);
-		// bottom
-		glNormal3f(0.0, 1.0, 0.0);
-		glVertex3f(-1.0, -1.0, 1.0);
-		glVertex3f(1.0, -1.0, 1.0);
-		glVertex3f(1.0, -1.0, -1.0);
-		glVertex3f(-1.0, -1.0, -1.0);
-
-		// top
-		glNormal3f(0.0, -1.0, 0.0);
-		glVertex3f(-1.0, 1.0, 1.0);
-		glVertex3f(1.0, 1.0, 1.0);
-		glVertex3f(1.0, 1.0, -1.0);
-		glVertex3f(-1.0, 1.0, -1.0);
-
-		// near-side
-		glNormal3f(0.0, 0.0, 1.0);
-		glVertex3f(-1.0, 1.0, 1.0);
-		glVertex3f(1.0, 1.0, 1.0);
-		glVertex3f(1.0, -1.0, 1.0);
-		glVertex3f(-1.0, -1.0, 1.0);
-
-		// far-side
-		glNormal3f(0.0, 0.0, -1.0);
-		glVertex3f(-1.0, 1.0, -1.0);
-		glVertex3f(1.0, 1.0, -1.0);
-		glVertex3f(1.0, -1.0, -1.0);
-		glVertex3f(-1.0, -1.0, -1.0);
-	glEnd();
-}
-
-void drawPaddle1()
-{
-	// middle
-	glPushMatrix();
-		glScalef(1.0, 0.5, 0.5);
-		cube();
-	glPopMatrix();
-
-	// horizontal cross
-	glPushMatrix();
-		glScalef(0.5, 0.3, 1.0);
-		cube();
-	glPopMatrix();
-
-	// vertical cross
-	glPushMatrix();
-		glScalef(0.5, 1.0, 0.3);
-		cube();
-	glPopMatrix();
-}
-
-void drawPaddle2()
-{
-	// middle
-	glPushMatrix();
-		glScalef(1.0, 0.75, 0.75);
-		cube();
-	glPopMatrix();
-
-	// side cilinders
-	glPushMatrix();
-		glRotatef(90.0, 1.0, 0.0, 0.0);
-		glScalef(1.0, 0.15, 1.0);
-		glTranslatef(0.0, 5.0, 0.0);
-		cylinder();
-
-		glTranslatef(0.0, -10.0, 0.0);
-		cylinder();
-	glPopMatrix();
-}
-
-void drawBall()
-{
-	// left ball
-	glPushMatrix();
-		glTranslatef(-2.0, 0.0, 0.0);
-		glutSolidSphere(1.0, 6, 6);
-	glPopMatrix();
-
-	// connecting cilinder
-	glPushMatrix();
-		glRotatef(90.0, 0.0, 1.0, 0.0);
-		glScalef(0.3, 0.3, 2.0);
-		cylinder();
-	glPopMatrix();
-	
-	// right ball
-	glPushMatrix();
-		glTranslatef(2.0, 0.0, 0.0);
-		glutSolidSphere(1.0, 6, 6);
-	glPopMatrix();
-}
-
-void drawLight()
-{
-	glPushMatrix();
-		glScalef(2.0, 2.0, 1.0);
-		weight();
-	glPopMatrix();
+	//Launches the GLUT program
+	glutMainLoop();
+	return 0;
 }
 
 void display(void)
 {
-	static char buffer[20];
+	static char size[5];
 
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glColor3f(1.0, 1.0, 1.0);
-
-	if (light)
-		glEnable(GL_LIGHTING);
-	else
-		glDisable(GL_LIGHTING);
+	glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+	glColor3f(0.0f, 0.0f, 0.0f);
 		
 	glPushMatrix();
+		
 		glLoadIdentity();
 		glTranslatef(-eye[0], -eye[1], -eye[2]);
 
-		// Lighting
+		//This attaches lighting to the ball
 		glPushMatrix();
 		{
-			GLfloat LightPosition[] = { 0.0, 0.0, 0.0, 1.0f };
+			GLfloat LightPosition[] = {0.0f, 0.0f, 0.0f, 1.0f};
 			glTranslatef(ball.position[0], ball.position[1], ball.position[2]);
 			glLightfv(GL_LIGHT0, GL_POSITION,LightPosition);
 		}
 		glPopMatrix();
 
-		// Light off for the score
-			glDisable(GL_LIGHTING);
-			// player 1 score
-			glColor3f(0.0, 1.0, 0.0);
-			sprintf(buffer, "%d", paddle1.score);
-			text(-2, 2, buffer);
+		
+		//Lighting is disabled for the score area
+		glDisable(GL_LIGHTING);
+			
+			//Player's score
+			glColor3f(0.5f, 0.2f, 0.1f);
+			sprintf(size, "%d", playerPaddle.score);
+			scoreText(0, -2, size);
 
-			// player 2 score
-			glColor3f(0.0, 0.0, 1.0);
-			sprintf(buffer, "%d", paddle2.score);
-			text(2, 2, buffer);
-		// light on
-		if (light)
-			glEnable(GL_LIGHTING);
+			//Opponent's score
+			glColor3f(0.45f, 0.73f, 0.8f);
+			sprintf(size, "%d", opponentPaddle.score);
+			scoreText(0, 2, size);
+		
+		//Re-enable lighting
+		glEnable(GL_LIGHTING);
 
+		//Rotates the camera a bit
 		glRotatef(camera[0], 1.0, 0.0, 0.0);
 		glRotatef(camera[1], 0.0, 1.0, 0.0);
 		glRotatef(camera[2], 0.0, 0.0, 1.0);
 
-		// the ball
-		glColor3f(ball.color[0], ball.color[1], ball.color[2]);
+		//Draws the ball
+		glColor3f(ball.colour[0], ball.colour[1], ball.colour[2]);
 		glPushMatrix();
 			glTranslatef(ball.position[0], ball.position[1], ball.position[2]);
-			glScalef(ball.radius, ball.radius, ball.radius);
-			glRotatef(ball.orientation[0], 1.0, 0.0, 0.0);
-			glRotatef(ball.orientation[0], 0.0, 1.0, 0.0);
-			glRotatef(ball.orientation[0], 0.0, 0.0, 1.0);
+			glScalef(ball.rad, ball.rad, ball.rad);
+			glRotatef(ball.rotation[0], 1.0, 0.0, 0.0);
+			glRotatef(ball.rotation[0], 0.0, 1.0, 0.0);
+			glRotatef(ball.rotation[0], 0.0, 0.0, 1.0);
 			drawBall();
 		glPopMatrix();
 
-		// opponent paddle
-		glColor4f(paddle2.color[0], paddle2.color[1], paddle2.color[2], 0.5);
+		//player paddle
+		glColor4f(playerPaddle.colour[0], playerPaddle.colour[1], playerPaddle.colour[2], 0.5);
 		glPushMatrix();
-			glTranslatef(paddle2.position[0] - paddle2.size[2], paddle2.position[1], paddle2.position[2]);
-			glScalef(paddle2.size[2], paddle2.size[1], paddle2.size[0]);
-			drawPaddle2();
+			glTranslatef(playerPaddle.position[0] + opponentPaddle.dimensions[2], playerPaddle.position[1], playerPaddle.position[2]);
+			glScalef(playerPaddle.dimensions[2], playerPaddle.dimensions[1], playerPaddle.dimensions[0]);
+			drawPaddle();
 		glPopMatrix();
 
-		// player paddle
-		glColor4f(paddle1.color[0], paddle1.color[1], paddle1.color[2], 0.5);
+		//opponent paddle
+		glColor4f(opponentPaddle.colour[0], opponentPaddle.colour[1], opponentPaddle.colour[2], 0.5);
 		glPushMatrix();
-			glTranslatef(paddle1.position[0] + paddle2.size[2], paddle1.position[1], paddle1.position[2]);
-			glScalef(paddle1.size[2], paddle1.size[1], paddle1.size[0]);
-			drawPaddle1();
+			glTranslatef(opponentPaddle.position[0] - opponentPaddle.dimensions[2], opponentPaddle.position[1], opponentPaddle.position[2]);
+			glScalef(opponentPaddle.dimensions[2], opponentPaddle.dimensions[1], opponentPaddle.dimensions[0]);
+			drawPaddle();
 		glPopMatrix();
 
-		// playing area
-		glColor4f(1.0, 0.0, 0.0, 0.3);
+		//playing field
+		//Note: the field itself consists of two sets of walls.
+		glColor4f(0.49f, 0.15f, 0.80f, 0.3f);
 		glBlendFunc(GL_SRC_ALPHA,GL_ONE);
 		glPushMatrix();
-			// object consists of two walls
 			glTranslatef(-1.0, 0.0, 0.0);
 			drawWall();
 			glTranslatef(2.0, 0.0, 0.0);
@@ -657,45 +235,403 @@ void display(void)
 	glutSwapBuffers();
 }
 
-void mouseMove(int x, int y)
+void Reshape(int w, int h)
 {
-	static GLint oldX = 0;
-	static GLint oldY = 0;
+	glViewport(0, 0, w, h);
 
-	if (paused)
-		return;
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
 
-	// moving up
-	if (oldY > y && paddle1.position[1] < 1.0 - paddle1.size[1] - 0.01)
-		paddle1.position[1] += 0.05;
-	// downwards
-	if (oldY < y && paddle1.position[1] > -1.0 + paddle1.size[1] + 0.01)
-		paddle1.position[1] -= 0.05;
+	gluPerspective(45.0, (float)(w/h), 1.0, 300.0);
 
-	// to the right
-	if (oldX < x && paddle1.position[2] < 1.0 - paddle1.size[0] - 0.01)
-		paddle1.position[2] += 0.05;
-	// to the left
-	if (oldX > x && paddle1.position[2] > -1.0 + paddle1.size[0] + 0.01)
-		paddle1.position[2] -= 0.05;
-
-	oldX = x;
-	oldY = y;
-
-	glutPostRedisplay();
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
 }
 
-void mouse(int btn, int state, int x, int y)
+void initGL()
 {
-	if (btn == GLUT_LEFT_BUTTON) {
-	} else if (btn == GLUT_MIDDLE_BUTTON) {
-	} else if (btn == GLUT_RIGHT_BUTTON) {
+	//Two types of lighting
+	GLfloat ambientLight[]  = {0.2f, 0.2f, 0.2f, 1.0f};
+	GLfloat diffuseLight[]  = {0.5f, 0.5f, 0.5f, 0.5f};
+
+	//Positions the light
+	GLfloat LightPosition[] = {-eye[0], -eye[1] + (GLfloat) 2.0, -eye[2], 1.0f};
+
+	//Shading
+	glShadeModel(GL_SMOOTH);
+	glClearColor(0.0, 0.0, 0.0, 0.0);
+	glEnable(GL_DEPTH_TEST);
+
+	
+	glLightfv(GL_LIGHT0, GL_AMBIENT, ambientLight);
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuseLight);
+	glLightfv(GL_LIGHT0, GL_POSITION, LightPosition);
+
+	glEnable(GL_LIGHT0);
+	glEnable(GL_COLOR_MATERIAL);
+
+	glHint(GL_PERSPECTIVE_CORRECTION_HINT,GL_NICEST);
+}
+
+void drawWall()
+{
+	glBegin(GL_QUADS);
+		glNormal3f(0.0f, 1.0f, 0.0f);
+		glVertex3f(-1.0f, -1.0f, 1.0f);
+		glVertex3f(1.0f, -1.0f, 1.0f);
+		glVertex3f(1.0f, -1.0f, -1.0f);
+		glVertex3f(-1.0f, -1.0f, -1.0f);
+
+		glNormal3f(0.0f, -1.0f, 0.0f);
+		glVertex3f(-1.0f, 1.0f, 1.0f);
+		glVertex3f(1.0f, 1.0f, 1.0f);
+		glVertex3f(1.0f, 1.0f, -1.0f);
+		glVertex3f(-1.0f, 1.0f, -1.0f);
+
+		glNormal3f(0.0f, 0.0f, 1.0f);
+		glVertex3f(-1.0f, 1.0, 1.0f);
+		glVertex3f(1.0f, 1.0f, 1.0f);
+		glVertex3f(1.0f, -1.0f, 1.0f);
+		glVertex3f(-1.0f, -1.0f, 1.0f);
+
+		glNormal3f(0.0f, 0.0f, -1.0f);
+		glVertex3f(-1.0f, 1.0f, -1.0f);
+		glVertex3f(1.0f, 1.0f, -1.0f);
+		glVertex3f(1.0f, -1.0f, -1.0f);
+		glVertex3f(-1.0f, -1.0f, -1.0f);
+	glEnd();
+}
+
+void drawPaddle() //draws the player's paddle
+{
+	glPushMatrix();
+		cube();
+	glPopMatrix();
+}
+
+void drawBall() //draws the ball, a simple sphere
+{
+	glPushMatrix();
+		glutSolidSphere(1.5, 7, 7);
+	glPopMatrix();
+}
+
+void cube()
+{
+	polygon(0,3,2,1);
+	polygon(2,3,7,6);
+	polygon(0,4,7,3);
+	polygon(1,2,6,5);
+	polygon(4,5,6,7);
+	polygon(0,1,5,4);
+}
+
+void polygon(int a, int b, int c , int d)
+{
+	glBegin(GL_POLYGON);
+		glVertex3fv(vertices[a]);
+		glVertex3fv(vertices[b]);
+		glVertex3fv(vertices[c]);
+		glVertex3fv(vertices[d]);
+	glEnd();
+}
+
+void scoreText(GLint x, GLint y, char *scoreText)
+{
+	char *s;
+
+	glRasterPos2i(x, y);
+
+	for (s = scoreText; *s; s++)
+		glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, *s);
+}
+
+void opponentMove() //makes the CPU paddle move around after the ball
+{
+	//Note: The CPU paddle only starts moving when the ball is headed its way.
+	static GLfloat dy = 0.03f; 
+	static GLfloat dz = 0.03f;
+
+	if (ball.transformation[0] < 0.0)
+		return;
+	
+	if (opponentPaddle.position[1] < ball.position[1] && opponentPaddle.position[1] + opponentPaddle.dimensions[1] + dy <= 1.0)
+		opponentPaddle.position[1] += dy;
+	else if (opponentPaddle.position[1] > ball.position[1] && opponentPaddle.position[1] - opponentPaddle.dimensions[1] - dy >= -1.0)
+		opponentPaddle.position[1] -= dy;
+	
+	if (opponentPaddle.position[2] < ball.position[2] && opponentPaddle.position[2] + opponentPaddle.dimensions[0] + dz <= 1.0)
+		opponentPaddle.position[2] += dz;
+	else if (opponentPaddle.position[2] > ball.position[2] && opponentPaddle.position[2] - opponentPaddle.dimensions[0] - dz >= -1.0)
+		opponentPaddle.position[2] -= dz;
+}
+
+void moveBall(void)		//Here's where the fun of pong happens: collisions galore!
+{
+	static clock_t nextTime = 0;
+	clock_t currentTime = clock();
+
+	int i;
+
+	if (nextTime >= currentTime || paused)
+		return;
+
+	opponentMove();
+
+	for(i = 0; i < 3; i++)
+	{
+		ball.position[i] += ball.transformation[i];
+	}
+
+	//Bounces against the wall!
+	if (ball.position[1] <= (-1.0 + ball.rad) || ball.position[1] >= (1.0 - ball.rad))
+		ball.transformation[1] = -ball.transformation[1];
+	
+	if (ball.position[2] >= (1.0 - ball.rad)  || ball.position[2] <= (-1.0 + ball.rad))
+		ball.transformation[2] = -ball.transformation[2];
+
+		//Ball bounces against the paddle!
+	    if (ball.transformation[0] < 0.0
+		&& (ball.position[0] < -2.0 + ball.rad + playerPaddle.dimensions[2])
+		&& (ball.position[1] >= (playerPaddle.position[1] - playerPaddle.dimensions[1]))
+		&& (ball.position[1] <= (playerPaddle.position[1] + playerPaddle.dimensions[1]))
+		&& (ball.position[2] >= (playerPaddle.position[2] - playerPaddle.dimensions[0]))
+		&& (ball.position[2] <= (playerPaddle.position[2] + playerPaddle.dimensions[0])))
+		{
+			//changes the colour of the ball to the colour of the player's paddle
+			for(i = 0; i < 3; i ++)
+			{
+				ball.colour[i] = playerPaddle.colour[i];
+			}
+
+
+			//player's paddle hits the ball
+			ball.transformation[0] = -ball.transformation[0];
+
+		
+			if	(ball.position[1] > playerPaddle.position[1] + playerPaddle.dimensions[1] / 2.0
+			  && ball.position[1] <= playerPaddle.position[1] + playerPaddle.dimensions[1] / 2.0
+			  && ball.position[2] >= playerPaddle.position[2] - playerPaddle.dimensions[0] / 2.0
+			  && ball.position[2] <= playerPaddle.position[2] + playerPaddle.dimensions[0] / 2.0) 
+			{
+					ball.transformation[0] *= 1.5;  //speeds up the ball
+			} 
+			else 
+			{
+				if (ball.transformation[1] > 0.0f) 
+				{
+					if (ball.position[1] > playerPaddle.position[1])
+						ball.transformation[1] += (GLfloat) 0.005;
+					else			
+						ball.transformation[1] = (GLfloat) 0.005 - ball.transformation[1];
+				} 
+				else 
+				{
+					if (ball.position[1] < playerPaddle.position[1])
+						ball.transformation[1] -= (GLfloat) 0.005;
+					else
+						ball.transformation[1] = -ball.transformation[1] - (GLfloat) 0.005;
+				}
+
+
+				if (ball.transformation[2] > 0.0) 
+				{
+					if (ball.position[2] > playerPaddle.position[2])
+						ball.transformation[2] += (GLfloat) 0.005;
+					else
+						ball.transformation[2] = (GLfloat) 0.005 - ball.transformation[2];
+				} 
+				else
+				{
+					if (ball.position[2] < playerPaddle.position[2])
+						ball.transformation[2] -= (GLfloat) 0.005;
+					else
+						ball.transformation[2] = -ball.transformation[2] - (GLfloat) 0.005;
+				}//end-nested-if
+			}//endif
+		}//end-big-if
+
+	//The same thing happens with the opponent's paddle
+	if (ball.position[0] > 2.0 - ball.rad - opponentPaddle.dimensions[2]
+		&& ball.transformation[0] > 0.0
+		&& ball.position[1] >= opponentPaddle.position[1] - opponentPaddle.dimensions[1]
+		&& ball.position[1] <= opponentPaddle.position[1] + opponentPaddle.dimensions[1]
+		&& ball.position[2] >= opponentPaddle.position[2] - opponentPaddle.dimensions[0]
+		&& ball.position[2] <= opponentPaddle.position[2] + opponentPaddle.dimensions[0]
+	) {
+
+		ball.transformation[0] = -ball.transformation[0];
+
+		for(i = 0; i < 3; i++)
+		{
+			ball.colour[i] = opponentPaddle.colour[i];
+		}
+
+		if (ball.position[1] > opponentPaddle.position[1] + opponentPaddle.dimensions[1] / 2.0
+			&& ball.position[1] <= opponentPaddle.position[1] + opponentPaddle.dimensions[1] / 2.0
+			&& ball.position[2] >= opponentPaddle.position[2] - opponentPaddle.dimensions[0] / 2.0
+	                && ball.position[2] <= opponentPaddle.position[2] + opponentPaddle.dimensions[0] / 2.0) {
+
+			ball.transformation[0] *= 1.5;
+		} else {
+
+			if (ball.transformation[1] > 0.0) {
+				if (ball.position[1] > opponentPaddle.position[1])
+					ball.transformation[1] += (GLfloat) 0.005;
+				else
+					ball.transformation[1] = ((GLfloat) 0.005) - ball.transformation[1];
+			} else {
+				if (ball.position[1] < opponentPaddle.position[1])
+					ball.transformation[1] -= (GLfloat) 0.005;
+				else
+					ball.transformation[1] = -ball.transformation[1] - ((GLfloat) 0.005);
+			}
+			
+			if (ball.transformation[2] > 0.0) {
+				if (ball.position[2] > opponentPaddle.position[2])
+					ball.transformation[2] += (GLfloat) 0.005;
+				else
+					ball.transformation[2] = (GLfloat) 0.005 - ball.transformation[2];
+			} else {
+				if (ball.position[2] < opponentPaddle.position[2])
+					ball.transformation[2] -= (GLfloat) 0.005;
+				else
+					ball.transformation[2] = -ball.transformation[2] - (GLfloat) 0.005;
+			}
+		}
+	}
+	
+
+	//Sets the winner
+	if (ball.position[0] > 2.0 - ball.rad) {
+		winner = &playerPaddle;
+		playerPaddle.score++;
+		resetBallPosition();
+	}
+	else if (ball.position[0] < -2.0 + ball.rad) {
+		winner = &opponentPaddle;
+		opponentPaddle.score++;
+		resetBallPosition();
 	}
 
 	glutPostRedisplay();
 }
 
-void special(int value, int x, int y)
+GLfloat randomPos()
+{
+	return (GLfloat) ((rand() % 200) / 200.0);
+}
+
+void resetBallPosition()
+{
+	int i;
+
+	if (winner == &playerPaddle) {
+		ball.position[0] = playerPaddle.position[0] + playerPaddle.dimensions[2];
+		ball.position[1] = playerPaddle.position[1];
+		ball.position[2] = playerPaddle.position[2];
+		
+		for(i = 0; i < 3; i++)
+		{
+			ball.transformation[i] = (GLfloat) (randomPos() / 20.0 + 0.005);
+		}
+
+		if (ball.transformation[0] < 0.0)
+			ball.transformation[0] = -ball.transformation[0];
+		if (rand() & 1)
+			ball.transformation[1] = -ball.transformation[1];
+		if (rand() & 1)
+			ball.transformation[2] = -ball.transformation[2];
+	} 
+	else if(winner == &opponentPaddle)
+	{
+		ball.position[0] = opponentPaddle.position[0] - opponentPaddle.dimensions[2];
+		ball.position[1] = opponentPaddle.position[1];
+		ball.position[2] = opponentPaddle.position[2];
+		
+		ball.transformation[0] = randomPos() / (GLfloat) (20.0 + 0.01);
+
+		for(i = 1; i < 3; i++)
+		{
+			ball.transformation[i] = randomPos() / (GLfloat) (20.0 + 0.005);
+		}
+
+		if (ball.transformation[0] > 0.0)
+			ball.transformation[0] = -ball.transformation[0];
+
+		if (rand() & 1)
+			ball.transformation[1] = -ball.transformation[1];
+
+		if (rand() & 1)
+			ball.transformation[2] = -ball.transformation[2];
+	}
+	
+	for(i = 0; i < 3; i++)
+	{
+		ball.colour[i] = 1.0f;
+	}
+}
+
+void mouseMove(int x, int y)
+{
+	static GLint tmp_x = 0;
+	static GLint tmp_y = 0;
+
+	if (paused)
+		return;
+
+	//paddle go up
+	if (tmp_y > y && playerPaddle.position[1] < 1.0 - playerPaddle.dimensions[1] - 0.01)
+		playerPaddle.position[1] += (GLfloat) 0.05;
+	//paddle go down
+	if (tmp_y < y && playerPaddle.position[1] > -1.0 + playerPaddle.dimensions[1] + 0.01)
+		playerPaddle.position[1] -= (GLfloat) 0.05;
+
+	//paddle to the left, to the left
+	if (tmp_x > x && playerPaddle.position[2] > -1.0 + playerPaddle.dimensions[0] + 0.01)
+		playerPaddle.position[2] -= (GLfloat) 0.05;
+	//paddle to the right
+	if (tmp_x < x && playerPaddle.position[2] < 1.0 - playerPaddle.dimensions[0] - 0.01)
+		playerPaddle.position[2] += (GLfloat) 0.05;
+
+	tmp_x = x;
+	tmp_y = y;
+
+	glutPostRedisplay();
+}
+
+void keys(unsigned char key, int x, int y)
+{
+	switch (key) {
+		case ' ':		//spacebar key
+			paused = !paused;
+			break;
+		case '+':		//increase ball speed
+			ball_speed /= 2;
+			break;
+		case '-':		//decrease ball speed
+			ball_speed *= 2;
+			if (ball_speed == 0)
+				ball_speed = 1;
+			break;
+		case 'r':
+			resetBallPosition();
+			break;
+		case 27:
+			{
+				glutIdleFunc(DisplayImage);
+
+				glutMouseFunc(mouseButton);
+			}
+			break;
+		default:
+			break;
+	}
+
+   glutPostRedisplay();
+}
+
+void specialKeys(int value, int x, int y)
 {
     switch (value)
     {
@@ -704,7 +640,7 @@ void special(int value, int x, int y)
 			break;
 		case GLUT_KEY_F2:
 			glutPositionWindow(100, 100);
-			glutReshapeWindow(500, 500);
+			glutReshapeWindow(600, 600);
 			break;
 		case GLUT_KEY_UP:
 			camera[0] -= 3.0;
@@ -718,121 +654,86 @@ void special(int value, int x, int y)
 		case GLUT_KEY_LEFT:
 			camera[1] -= 3.0;
 			break;
-
+		case GLUT_KEY_PAGE_UP:
+			eye[2] -= 1.0;
+			break;
+		case GLUT_KEY_PAGE_DOWN:
+			eye[2] += 1.0;
+			break;
     }
 
 	glutPostRedisplay();
 }
 
-void keys(unsigned char key, int x, int y)
+
+void InputImage(void)
 {
-	switch (key) {
-		case ' ': // pause toggle
-			paused = !paused;
-			break;
-		case '+': // increase speed
-			frameInterval /= 2;
-			printf("Interval %d\n", frameInterval);
-			break;
-		case '-': // decrease speed
-			frameInterval *= 2;
-			if (frameInterval == 0)
-				frameInterval = 1;
-			printf("Interval %d\n", frameInterval);
-			break;
-		case 'l': // light toggle
-			light = !light;
-			break;
-		case 27: // ESCAPE key
-			exit(0);
-			break;
-		case 'z':
-			eye[2] -= 1.0;
-			break;
-		case 'x':
-			eye[2] += 1.0;
-			break;
-		case 'r':
-			relaunchBall();
-			break;
-		case 'c': // restore original position
-			eye[0] = 0.0;
-			eye[1] = 0.0;
-			eye[2] = 7.0;
-			camera[0] = 0.0;
-			camera[1] = 90.0;
-			camera[2] = 0.0;
-			break;
-		default:
-			break;
+	inf_handle = fopen("starks.raw", "rb"); //reads the file in binary mode
+    
+    //reads the 
+    for ( r = 0; r < MAXROW; r++ )
+        for ( c = 0; c < MAXCOL; c++) {
+            charin=fgetc(inf_handle);
+            image[r][c] = charin;
+        }
+
+    fclose(inf_handle); /* close input file */
+}
+
+void WriteCaptions(void)
+{
+    int i, j;
+    char caption1[] = "SHER DODANI";
+	char caption2[] = "HANAII PARKER";
+    glColor3f(1.0, 1.0, 1.0);
+
+    glRasterPos2i(75, 250);
+    for (i=0; i< sizeof(caption1) ; i++)
+		glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, caption1[i]);
+
+	glRasterPos2i(325, 250);
+	for (j=0; j< sizeof(caption2) ; j++)
+		glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, caption2[j]);
+}
+
+void DisplayImage(void)
+{
+    int offset;
+
+	InputImage();
+	
+    offset = 0;
+    for ( r = MAXROW-1; r >= 0; r-- ) {
+        for ( c = 0; c < MAXCOL; c++) {
+            image_buf[MAXCOL*offset + c] = image[r][c];
+        }
+        offset++;
+    }
+		
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+
+    //set up an orthographic projection in 2D with a 600x600 viewing window
+    gluOrtho2D(0.0,600.0,0.0,600.0);
+
+    glMatrixMode(GL_MODELVIEW);
+    WriteCaptions();
+    /* set raster position for displaying image in graphics image buffer*/
+    glRasterPos2i(40, 300); // (x,y)
+    /* load graphics image buffer with image from your own image buffer */
+    glDrawPixels(MAXCOL, MAXROW, GL_LUMINANCE, GL_UNSIGNED_BYTE, image_buf);
+    glutSwapBuffers();
+}
+
+void mouseButton(int button, int state, int x, int y)
+{
+	if(button == GLUT_LEFT_BUTTON)
+	{
+		if(state == GLUT_DOWN)
+		{
+			glutLeaveMainLoop();
+		}
 	}
-
-   glutPostRedisplay();
-}
-
-void myReshape(int w, int h)
-{
-	glViewport(0, 0, w, h);
-
-	glMatrixMode(GL_PROJECTION); 
-	glLoadIdentity();
-
-	gluPerspective(45.0, (float)w/(float)h, 1.0, 300.0);
-
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-}
-
-void disablePointer()
-{
-	ShowCursor(FALSE);
-}
-
-void initGL()
-{
-	GLfloat LightAmbient[]  = { 0.2f, 0.2f, 0.2f, 1.0f };
-	GLfloat LightDiffuse[]  = { 0.5f, 0.5f, 0.5f, 0.5f };
-	GLfloat LightPosition[] = { -eye[0], -eye[1] + 2.0, -eye[2], 1.0f };
-
-	glShadeModel(GL_SMOOTH);
-	glClearColor(0.0, 0.0, 0.0, 0.0);
-	glEnable(GL_DEPTH_TEST);
-
-	// For the light
-	glLightfv(GL_LIGHT0, GL_AMBIENT, LightAmbient);
-	glLightfv(GL_LIGHT0, GL_DIFFUSE, LightDiffuse);
-	glLightfv(GL_LIGHT0, GL_POSITION, LightPosition);
-	glEnable(GL_LIGHT0);
-	glEnable(GL_COLOR_MATERIAL);
-
-	glHint(GL_PERSPECTIVE_CORRECTION_HINT,GL_NICEST);
-}
-
-int main(int argc, char **argv)
-{
-	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH);
-
-	// create the window
-	glutInitWindowSize(500, 500);
-	glutCreateWindow("PONG by Team Estrogen!");
-
-	// misc initialisation
-	initGL();
-	srand( time(NULL) );
-	relaunchBall(); // initiate the ball position
-	disablePointer();
-
-	// callbacks
-	glutReshapeFunc(myReshape);
-	glutDisplayFunc(display);
-	glutIdleFunc(moveBall);
-	glutMouseFunc(mouse);
-	glutMotionFunc(mouseMove);
-	glutPassiveMotionFunc(mouseMove);
-	glutKeyboardFunc(keys);
-	glutSpecialFunc(special);
-
-	glutMainLoop();
-	return 0;
 }
